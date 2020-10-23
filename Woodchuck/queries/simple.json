@@ -1,0 +1,32 @@
+{
+  "size": 5000,
+  "_source": [
+    "xid",
+    "msg",
+    "fields.service",
+    "fields.env",
+    "fields.machine",
+    "level",
+    "message",
+    "time",
+    "user",
+    "account"
+  ],
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "match_phrase": { "": "" }
+        },
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "",
+              "lte": ""
+            }
+          }
+        }
+      ]
+    }
+  }
+}
