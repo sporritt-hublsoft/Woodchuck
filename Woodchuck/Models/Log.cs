@@ -29,7 +29,6 @@ namespace Woodchuck.Models
         [JsonPropertyAttribute("@timestamp")]
         public DateTimeOffset? EventTime { get; set; }
         public Guid? Xid { get; set; }
-        [JsonPropertyAttribute("fields.env")]
         public string Environment { get; set; }
         [JsonPropertyAttribute("level")]
         public string MessageLevel { get; set; }

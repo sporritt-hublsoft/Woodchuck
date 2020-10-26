@@ -1,10 +1,12 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Globalization;
-
 
 namespace Woodchuck
 {
+    /// <summary>
+    /// We're using this converter to check for nulls. Logit.io will report null Guids as a string, "<none>"
+    /// This can cause some mighty funky behaviour in our application if left unchecked.
+    /// </summary>
     class JSonNullGuidConverter : JsonConverter<Guid?>
     {
         public override void WriteJson(JsonWriter writer, Guid? guidValue, JsonSerializer serializer)

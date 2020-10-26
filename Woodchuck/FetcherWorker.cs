@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,11 +30,10 @@ namespace Woodchuck
         private static readonly TimeSpan _duration = TimeSpan.FromDays(15);
         private static readonly DateTimeOffset _endDate = _startDate.Add(_duration);
 
+        // TODO : We should really move some of these settings to our settings file.
         private const string _baseUri = "https://f5df450f-dc8b-4dea-94c2-06db6e2a2aae-es.logit.io/";
         private const string _apiKey = "e0142d36-46af-4d94-b901-ca261dee9b58";
         private const string _basePath = "/Users/sporritt.HS/queries";
-        private const string _matchField = "account";
-        private const string _matchValue = "GS";
         private static readonly string _jsonFile = CalculateFileName();
 
         private static string CalculateFileName() =>
@@ -53,25 +51,23 @@ namespace Woodchuck
 
         private string Parameterise(string raw) => raw
             .Replace("\"gte\": \"\"", $"\"gte\": \"{_startDate:o}\"")
-            .Replace("\"lte\": \"\"", $"\"lte\": \"{_endDate:o}\"")
-            .Replace("\"match_phrase\": { \"\": \"\" }", $"\"match_phrase\": {{ \"{_matchField}\": \"{_matchValue}\" }}");
+            .Replace("\"lte\": \"\"", $"\"lte\": \"{_endDate:o}\"");
 
         private Log JSonToLog(JObject jsonLog)
         {
             var js = new JsonSerializer();
             js.Converters.Add(new JSonNullGuidConverter());
-            // if we're getting a problem with guid's being reported as "<none>", we can add a custom converter to return null
-            // js.Converters.Add(new JSonNullGuidConverter());
 
             try
             {
+                // TODO : newtonsoft.com's example of deserialization uses the static class, JsonConvert.
+                // perhaps we should use that instead? It might just wrap what we're doing though.
+                // JsonConvert.DeserializeObject<Log>(jsonLog.ToString(), new JSonNullGuidConverter());
                 var log = js.Deserialize<Log>(jsonLog.CreateReader());
                 return log;
             }
             catch (Exception ex)
             {
-                // TODO : An exception occurs when we receive "<none>" for Xid when we're expecting a Guid
-                // We should handle that with a replace before we attept to Deserialize
                 _logger.LogError($"We hit an error trying to convert a log.\nThe error was { ex.Message }");
                 return null;
             }

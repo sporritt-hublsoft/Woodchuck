@@ -1,7 +1,6 @@
 {
   "size": 5000,
-  // "docvalue_fields":
-  "_source": //true,
+  "_source":
   [
     "xid",
     "msg",
@@ -12,12 +11,8 @@
     "account"
   ],
   "query": {
-    // "match_all": {}
     "bool": {
       "filter": [
-        //{
-        //  "match_phrase": { "": "" }
-        //},
         {
           "range": {
             "@timestamp": {
