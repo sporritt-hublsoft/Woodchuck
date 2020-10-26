@@ -16,12 +16,14 @@ namespace Woodchuck
         private readonly ILogger<SaverWorker> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly LogQueue _logs;
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
 
-        public SaverWorker(ILogger<SaverWorker> logger, IServiceScopeFactory scopeFactory, LogQueue logs)
+        public SaverWorker(ILogger<SaverWorker> logger, IServiceScopeFactory scopeFactory, LogQueue logs, IHostApplicationLifetime hostApplicationLifetime)
         {
             _logs = logs;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _hostApplicationLifetime = hostApplicationLifetime;
         }
 
         /// <summary>
@@ -29,14 +31,14 @@ namespace Woodchuck
         /// </summary>
         private void SaveLogs()
         {
-            var batchLimit = 1000;
+            var batchLimit = 5000;
             var itemsToSave = 0;
             var logsToSave = new List<Log>();
 
             while (_logs.Count > 0 && itemsToSave < batchLimit)
             {
-                var log = _logs.Dequeue();
-                if (log != null)
+                var success = _logs.TryDequeue(out var log);
+                if (success)
                 {
                     logsToSave.Add(log);
                     itemsToSave++;
@@ -63,6 +65,10 @@ namespace Woodchuck
             }
 
             _logger.LogInformation("Saving logs complete.");
+
+            // all the work's done, so we can now close the application.
+            // in future, we might want to keep the application running to process new logs as they come in.
+            _hostApplicationLifetime.StopApplication();
         }
     }
 }

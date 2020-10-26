@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,22 +59,20 @@ namespace Woodchuck
         private Log JSonToLog(JObject jsonLog)
         {
             var js = new JsonSerializer();
+            js.Converters.Add(new JSonNullGuidConverter());
+            // if we're getting a problem with guid's being reported as "<none>", we can add a custom converter to return null
+            // js.Converters.Add(new JSonNullGuidConverter());
 
-            //foreach (var xid in _hits.Keys.ToArray())
-            //{
-            //    var list = _hits[xid];
-
-            //    foreach (var item in list)
-            //    {
             try
             {
                 var log = js.Deserialize<Log>(jsonLog.CreateReader());
                 return log;
             }
-            catch
+            catch (Exception ex)
             {
                 // TODO : An exception occurs when we receive "<none>" for Xid when we're expecting a Guid
                 // We should handle that with a replace before we attept to Deserialize
+                _logger.LogError($"We hit an error trying to convert a log.\nThe error was { ex.Message }");
                 return null;
             }
         }
@@ -126,39 +125,49 @@ namespace Woodchuck
             return QueueResults(result);
         }
 
-        private bool QueueResults(JObject result)
+        private bool QueueResults(JObject queryResult)
         {
             _logger.LogInformation("Queing logs.");
 
-            var found = result["hits"]["hits"]
-                .Values<JObject>()
-                .Select(o => o["_source"]
-                .Value<JObject>());
+            var results = queryResult["hits"]["hits"].Values<JObject>()
+                .Select(o =>
+                    new
+                    {
+                        id = o["_id"],
+                        data = o["_source"].Value<JObject>()
+                    });
 
-            foreach (var jsonObject in found)
+            _logger.LogInformation("Expanded results");
+
+            foreach (var result in results)
             {
                 // convert this item to a Log
-                var log = JSonToLog(jsonObject);
+                try
+                {
+                    var log = JSonToLog(result.data);
 
-                // queue it up to be processed
-                if (log != null)
-                    _logs.Enqueue(log);
-
-                //var xid = jsonObject["xid"].Value<string>();
-                //// find or add a parent item with the current xid
-                //if (!_hits.ContainsKey(xid))
-                //    _hits.Add(xid, new List<JObject>());
-                //var parent = _hits[xid];
-                //parent.Add(jsonObject);
+                    // queue it up to be processed
+                    if (log != null)
+                    {
+                        log.EventId = result.id.ToString();
+                        log.Environment = log.Fields?.Environment;
+                        _logs.Enqueue(log);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"We hit an error trying to convert a log with Id { result.id }.\nThe error was { ex.Message }");
+                }
             }
 
-            return found.Any();
+            _logger.LogInformation($"Returning value: { results.Any() }");
+            return results.Any();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var maxAttempts = 100;
-            var currentAttempt = 0;
+            var maxAttempts = int.MaxValue;
+            var currentAttempt = int.MinValue;
             using var client = _clientFactory.CreateClient();
 
             _logger.LogInformation("Starting initial search");
@@ -175,6 +184,8 @@ namespace Woodchuck
                 await Task.Delay(10, stoppingToken);
             } while (!stoppingToken.IsCancellationRequested && !_logs.IsFetchingComplete && ++currentAttempt < maxAttempts);
 
+            // if we exited the above loop because we exceeded maximum attemots, we need indicate we're done fetching.
+            _logs.IsFetchingComplete = true;
             _logger.LogInformation("Fetching logs complete.");
         }
     }

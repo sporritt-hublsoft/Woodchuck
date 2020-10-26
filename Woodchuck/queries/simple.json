@@ -1,23 +1,23 @@
 {
   "size": 5000,
-  "_source": [
+  // "docvalue_fields":
+  "_source": //true,
+  [
     "xid",
     "msg",
-    "fields.service",
-    "fields.env",
-    "fields.machine",
+    "fields",
     "level",
-    "message",
-    "time",
+    "@timestamp",
     "user",
     "account"
   ],
   "query": {
+    // "match_all": {}
     "bool": {
       "filter": [
-        {
-          "match_phrase": { "": "" }
-        },
+        //{
+        //  "match_phrase": { "": "" }
+        //},
         {
           "range": {
             "@timestamp": {
